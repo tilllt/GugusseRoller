@@ -249,9 +249,9 @@ while True:
     elif char == "k":
         if c.gcSettings["bracketing"]==0:
             c.gcSettings["bracketing"]=1
-        elif c.gcSettings["bracketing"]==1:
+        else:
             c.gcSettings["bracketing"]=0
-            c.gcSaveSettings()
+        c.gcSaveSettings()
     elif (char == "\033"):
         break
 
