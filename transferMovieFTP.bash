@@ -79,5 +79,6 @@ touch /dev/shm/transferInProgress.flag
 # start the Gugusse.py
 echo ./Gugusse.py $1 $startNumber $3
 ./Gugusse.py $1 $startNumber $3
-sleep 5
+sleep 15
 rm /dev/shm/transferInProgress.flag
+./lightsOff.py

@@ -17,6 +17,10 @@ import sys
 
 GPIO.setmode(GPIO.BCM)
 
+GPIO.setup(6,GPIO.OUT, initial=GPIO.HIGH)
+GPIO.setup(12,GPIO.OUT, initial=GPIO.HIGH)
+GPIO.setup(13,GPIO.OUT, initial=GPIO.HIGH)
+
 h=open("cameraSettings.json", "r")
 camsettings=json.load(h)
 h.close()
@@ -144,7 +148,7 @@ print("h: next EXP mode")
 print("j: Enter Exposure")
 print("v b: contrast")
 print("n m: brightness")
-print("k: Toggle bracketing")
+print("k: change Capture Mode")
 print("ESC: exit")
 print("SPC: toggle grid")
 
@@ -247,14 +251,21 @@ while True:
             c.gcSettings["brightness"]-= 1
         c.gcSaveSettings()            
     elif char == "k":
-        if c.gcSettings["bracketing"]==0:
-            c.gcSettings["bracketing"]=1
-        elif c.gcSettings["bracketing"]==1:
-            c.gcSettings["bracketing"]=0
-            c.gcSaveSettings()
+        if c.gcSettings["mode"]=="straight":
+            c.gcSettings["mode"]="bracketed"
+        elif c.gcSettings["mode"]=="bracketed":
+            c.gcSettings["mode"]="components"
+        elif c.gcSettings["mode"]=="components":
+            c.gcSettings["mode"]="both"
+        else:
+            c.gcSettings["mode"]="straight"
+        c.gcSaveSettings()
     elif (char == "\033"):
         break
 
+GPIO.output(6,GPIO.LOW)
+GPIO.output(12,GPIO.LOW)
+GPIO.output(13,GPIO.LOW)
 loopInputs=False
 sleep(0.2)
 t.join()

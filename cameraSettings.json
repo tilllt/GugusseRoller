@@ -5,10 +5,10 @@
     ], 
     "brightness": 50, 
     "exposure_mode": "off", 
-    "awb_mode": "off", 
+    "awb_mode": "flash", 
     "iso": 60, 
-    "bracketing": 0, 
-    "shutter_speed": 3000, 
+    "mode": "straight", 
+    "shutter_speed": 40000, 
     "exposure_compensation": -10, 
-    "contrast": -6
+    "contrast": 0
 }

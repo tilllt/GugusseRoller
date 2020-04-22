@@ -24,9 +24,21 @@ class MotorThread (threading.Thread):
    def run(self):
       self.motor.move()
 
+colors={
+   "red":[GPIO.HIGH, GPIO.LOW, GPIO.LOW],
+   "green":[GPIO.LOW, GPIO.HIGH, GPIO.LOW],
+   "blue":[GPIO.LOW, GPIO.LOW, GPIO.HIGH],
+   "white":[GPIO.HIGH, GPIO.HIGH, GPIO.HIGH],
+   "black":[GPIO.LOW, GPIO.LOW, GPIO.LOW],
+   "off":[GPIO.LOW, GPIO.LOW, GPIO.LOW]
+}
 
+      
 class Gugusse():
     def __init__(self, cfg, start_frame):
+        GPIO.setup(6,GPIO.OUT, initial=GPIO.HIGH)
+        GPIO.setup(12,GPIO.OUT, initial=GPIO.HIGH)
+        GPIO.setup(13,GPIO.OUT, initial=GPIO.HIGH)
         for item in cfg:
            if isinstance(cfg[item], dict):
               cfg[item]["name"]=item
@@ -42,10 +54,14 @@ class Gugusse():
         self.filmdrive.enable()
         self.pickup.enable()
         self.cam=GCamera()
-    def grabAPic(self):
-        fn="/dev/shm/%05d.jpg"%self.framecount
-        fncomplete="/dev/shm/complete/%05d.jpg"%self.framecount
-        self.framecount+= 1
+
+    def setLight(self, color):
+       c=colors[color]
+       GPIO.output(6,c[0])
+       GPIO.output(12,c[1])
+       GPIO.output(13,c[2])
+        
+    def grabAPicComponent(self, fn, fncomplete):
         try:
            self.cam.capture(fn)
         except exception as e:
@@ -56,6 +72,48 @@ class Gugusse():
            self.cam.close()
            raise Exception("Stop")
         os.rename(fn,fncomplete)
+    def grabASimpleSequential(self):
+        fn="/dev/shm/%05d.jpg"%self.framecount
+        fncomplete="/dev/shm/complete/%05d.jpg"%self.framecount
+        self.grabAPicComponent(fn, fncomplete)
+        self.framecount+= 1
+
+    
+    def grabAPic(self):
+        if self.cam.gcSettings["mode"] in [ "straight", "bracketed"]:                      
+           self.grabASimpleSequential()
+        if self.cam.gcSettings["mode"]=="bracketed":
+           self.cam.shutter_speed=self.cam.gcSettings["shutter_speed"]/2
+           sleep(0.25)
+           self.grabASimpleSequential()
+           self.cam.shutter_speed=self.cam.gcSettings["shutter_speed"]*2
+           sleep(0.25)
+           self.grabASimpleSequential()
+           self.cam.shutter_speed=self.cam.gcSettings["shutter_speed"]
+
+        if self.cam.gcSettings["mode"]=="components":
+            fn="/dev/shm/%05d.jpg"%self.framecount
+            fncomplete="/dev/shm/complete/%05d.jpg"%self.framecount
+            self.grabAPicComponent(fn, fncomplete)
+            self.setLight("red")
+            fn="/dev/shm/%05d_RED.jpg"%self.framecount
+            fncomplete="/dev/shm/complete/%05d_RED.jpg"%self.framecount
+            sleep(0.25)
+            self.grabAPicComponent(fn, fncomplete)
+
+            self.setLight("green")
+            fn="/dev/shm/%05d_GRN.jpg"%self.framecount
+            fncomplete="/dev/shm/complete/%05d_GRN.jpg"%self.framecount
+            sleep(0.25)
+            self.grabAPicComponent(fn, fncomplete)
+
+            self.setLight("blue")
+            fn="/dev/shm/%05d_BLU.jpg"%self.framecount
+            fncomplete="/dev/shm/complete/%05d_BLU.jpg"%self.framecount
+            sleep(0.25)
+            self.grabAPicComponent(fn, fncomplete)
+            self.setLight("white")
+            self.framecount+= 1
         
            
     def frameAdvance(self):
@@ -74,16 +132,8 @@ class Gugusse():
            self.filmdrive.disable()
            self.pickup.disable()
            raise Exception("Motor Fault!")
-        sleep(0.2)
+        sleep(0.25)
         self.grabAPic()
-        if self.cam.gcSettings["bracketing"]==1:
-           self.cam.shutter_speed=self.cam.gcSettings["shutter_speed"]/2
-           sleep(1)
-           self.grabAPic()
-           self.cam.shutter_speed=self.cam.gcSettings["shutter_speed"]*2
-           sleep(1)
-           self.grabAPic()
-           self.cam.shutter_speed=self.cam.gcSettings["shutter_speed"]
            
 
         
