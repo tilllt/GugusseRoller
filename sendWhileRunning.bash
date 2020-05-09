@@ -19,14 +19,15 @@ mkdir -p /dev/shm/complete
 cd /dev/shm/complete
 
 function sendAndDelete(){
-    if [ "$1" == "*.jpg" ]; then
+    if [ "$1" == "*.tif" ]; then
 	#echo no files, sleeping 1 sec
 	sleep 1
     else
-        ncftpput -u $ftpuser -p $ftppassword $ftpserver ${ftppathprefix}${dirName} $@ && rm -f $@
+        ncftpput -V -u $ftpuser -p $ftppassword $ftpserver ${ftppathprefix}${dirName} $@ && rm -f $@
+	echo "ncftpput and rm operation returned $? for $@"
     fi
 }
 
 while [ -f "/dev/shm/transferInProgress.flag" ]; do
-    sendAndDelete *.jpg
+    sendAndDelete *.tif
 done

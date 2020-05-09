@@ -54,6 +54,8 @@ class ACamera():
         self.save_raw=False
         self.totalFrame=0
         self.light=Backlight.Backlight()
+        self.glitches=0
+        
 
     def init_camera(self):        
         try:
@@ -73,6 +75,7 @@ class ACamera():
             else:
                 print("aborted")
             sys.exit(0)
+        
     
         devices_num,index,serials = ArducamSDK.Py_ArduCam_scan()
         assert devices_num == 1, "We expected 1 camera but we found {}".format(devices_num)
@@ -91,8 +94,12 @@ class ACamera():
         else:
             print("No handle???")
             sys.exit(0)
+        self.activateCameraValues()
+        self.colorCycle("red", "red")
         
-            
+    def justSetTheColorSpecificGlobalGain(self, color):
+        ArducamSDK.Py_ArduCam_writeSensorReg(self.handle,0x3012,self.camValues["exposures"][color])
+        
     def activateCameraValues(self, color="white"):
         ArducamSDK.Py_ArduCam_writeSensorReg(self.handle,0x0204,self.camValues["gain"])
         ArducamSDK.Py_ArduCam_writeSensorReg(self.handle,0x3012,self.camValues["exposures"][color])
@@ -114,6 +121,8 @@ class ACamera():
     def camera_init_Factory_Settings(self):
         #global Width,Height,color_mode,save_raw
         #load config file
+
+        #cv2.namedWindow("Gugusse",1)
         config = arducam_config_parser.LoadConfigFile(self.camValues["factoryFileSettings"])
         camera_parameter = config.camera_param.getdict()
         self.Width = camera_parameter["WIDTH"]
@@ -170,26 +179,24 @@ class ACamera():
             print("open fail,ret_val = ",ret)
             sys.exit(0)
 
-    def getAndDisplaySingleFrame(self, index=None, color=None):
-        count = 0
-
-        time0 = time.time()
-        time1 = time.time()
-        #data = {}
-        windowName = "ArduCam"
-        #GETBACKcv2.namedWindow(windowName,1)
-        save_path="/dev/shm/inprogress"
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-
+    def getSingleFrame(self):
         print("Take picture.")
         display_time = time.time()
-        rtn_val,data,rtn_cfg = ArducamSDK.Py_ArduCam_getSingleFrame(self.handle)
-
+        rtn_val= None
+        retries=5
+        while retries > 0:
+            rtn_val,data,rtn_cfg = ArducamSDK.Py_ArduCam_getSingleFrame(self.handle)
+            if rtn_val == 0:
+                break
+            self.glitches+= 1
+            retries -= 1
+            time.sleep(0.1)
+            ArducamSDK.Py_ArduCam_softTrigger(self.handle)
+            while ArducamSDK.Py_ArduCam_isFrameReady(self.handle)!=1:
+                time.sleep(0.001)
         if rtn_val != 0:
             print("Take picture fail,ret_val = ",rtn_val)
-            return
-
+            sys.exit(0)
         datasize = rtn_cfg['u32Size']
         if datasize == 0:
             print("data length zero!")
@@ -197,37 +204,37 @@ class ACamera():
 
         image = convert_image(data,rtn_cfg,self.color_mode)
 
-        time1 = time.time()
-        if time1 - time0 >= 1:
-            print("%s %d %s\n"%("fps:",count,"/s"))
-            count = 0
-            time0 = time1
-        count += 1
-        if index != None:
-            if color == None:
-                fn="{}/{:05d}.jpg".format(save_path, index)
-            else:
-                fn="{}/{:05d}_{}.jpg".format(save_path, index, color)
-                cv2.imwrite(fn,image)
-            print("saved {}".format(fn))
-            if self.save_raw:
-                pass
-
-        #GETBACKimage = cv2.resize(image,(640,480),interpolation = cv2.INTER_LINEAR)
-
-        #GETBACKcv2.imshow(windowName,image)
-    def colorCycle(self, index, color):
-        self.activateCameraValues(color)
-        self.light.setLight(color)        
-        #clean buffer
-        while ArducamSDK.Py_ArduCam_isFrameReady(self.handle)==1:
-            cam.getAndDisplaySingleFrame()
+        return image    
+    def colorCycle(self, nextColor, currentColor):
+        self.light.setLight(currentColor)
+        #clean out any rogue trigger
+        if ArducamSDK.Py_ArduCam_isFrameReady(self.handle)==1:
+            self.getSingleFrame()
+        self.justSetTheColorSpecificGlobalGain(nextColor)
         ArducamSDK.Py_ArduCam_softTrigger(self.handle)
         while ArducamSDK.Py_ArduCam_isFrameReady(self.handle)!=1:
             time.sleep(0.001)
-        self.getAndDisplaySingleFrame(index, color)
-        
-        
+        image=self.getSingleFrame()
+        return image
+    def captureImage(self, fn="/dev/shm/compose.tif"):
+        #self.colorCycle("red", "red")
+        retries=5
+        while True:
+            red=self.colorCycle("green", "red")
+            green=self.colorCycle("blue", "green")
+            blue=self.colorCycle("red", "blue")
+            if self.glitches==0:
+                break
+            else:
+                print("Glitch detected, retrying")
+                self.glitches=0
+                retries-= 1
+                if retries==0:                    
+                    sys.exit(0)
+        self.light.setLight("white")
+        image=cv2.merge([blue, green, red])
+        cv2.imwrite(fn, image)
+        return image
 
             
 
@@ -237,9 +244,4 @@ if __name__ == "__main__":
     
     print("Finished initing handle")
     count=0
-    while cam.running:
-        cam.colorCycle(count, "red")
-        cam.colorCycle(count, "green")
-        cam.colorCycle(count, "blue")
-        count+= 1
-
+    cam.captureImage()

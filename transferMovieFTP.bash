@@ -47,19 +47,19 @@ else
     echo "Directory $2 already existed on the ftp server!"
     echo "checking which is its last file in it"
     echo "(this could take a while)"
-    ncftpls -u$ftpuser -p$ftppassword ftp://$ftpserver/$ftppathprefix/$2/*.jpg > /dev/shm/filesOnServer.txt
+    ncftpls -u$ftpuser -p$ftppassword ftp://$ftpserver/$ftppathprefix/$2/*.tif > /dev/shm/filesOnServer.txt
     lastFile=`cat /dev/shm/filesOnServer.txt | sort | tail -n 1`
     echo lastfile=$lastFile	
     if [ -z "$lastFile" ]; then
-	echo "The directory existed but we couldn't find a jpg in it"
+	echo "The directory existed but we couldn't find a tif in it"
 	echo "therefore we'll start with 0, press Enter if you agree"
 	echo "or press Ctrl-C to cancel"
 	read
 	export startNumber=0
-    elif [ "$lastFile" == "00000.jpg" ]; then
+    elif [ "$lastFile" == "00000.tif" ]; then
 	export startNumber=1
     else	
-	lastFileNum=${lastFile%.jpg}
+	lastFileNum=${lastFile%.tif}
 	while [ "${lastFileNum:0:1}" == "0" ]; do
 	    export lastFileNum=${lastFileNum:1}
 	done

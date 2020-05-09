@@ -28,8 +28,9 @@ def RGB565ToMat(data,Width,Height):
 
 def dBytesToMat(data,bitWidth,Width,Height):
     arr = np.frombuffer(data,dtype=np.uint16)
-    arr = (arr >> (bitWidth - 8))
-    arr = arr.astype(np.uint8)
+    arr = (arr << 4) # Move the 4 unused bits to the least significative.
+    #arr = (arr >> (bitWidth - 8))
+    #arr = arr.astype(np.uint8)
     image = arr.reshape(Height,Width,1)
     return image
 def separationImage(data,Width,Height):
@@ -57,35 +58,37 @@ def convert_color(image,color_mode):
         image = cv2.cvtColor(image,COLOR_BayerGB2BGR)
     return image
 def convert_image(data,cfg,color_mode):
-    Width = cfg["u32Width"]
-    Height = cfg["u32Height"]
-    bitWidth = cfg["u8PixelBits"]
-    datasize = cfg["u32Size"]
+    Width = cfg["u32Width"]       #3664
+    Height = cfg["u32Height"]     #2748
+    bitWidth = cfg["u8PixelBits"] #12
+    datasize = cfg["u32Size"]     #20137344
+    #print("convert_image from a stream of {} bits words".format(bitWidth))
     global COLOR_BayerGB2BGR,COLOR_BayerRG2BGR,COLOR_BayerGR2BGR,COLOR_BayerBG2BGR
     image = None
-    emImageFmtMode = cfg['emImageFmtMode']
-    if emImageFmtMode == ArducamSDK.FORMAT_MODE_JPG:
+    emImageFmtMode = cfg['emImageFmtMode'] # 4
+    if emImageFmtMode == ArducamSDK.FORMAT_MODE_JPG: # 3
         image = JPGToMat(data,datasize)
-    if emImageFmtMode == ArducamSDK.FORMAT_MODE_YUV:
+    if emImageFmtMode == ArducamSDK.FORMAT_MODE_YUV: # 2
         image = YUVToMat(data,Width,Height)
-    if emImageFmtMode == ArducamSDK.FORMAT_MODE_RGB:
+    if emImageFmtMode == ArducamSDK.FORMAT_MODE_RGB: # 1
         image = RGB565ToMat(data,Width,Height)
-    if emImageFmtMode == ArducamSDK.FORMAT_MODE_MON:
-        if cfg["u8PixelBytes"] == 2:
+    if emImageFmtMode == ArducamSDK.FORMAT_MODE_MON: # 4      # <-----------
+        if cfg["u8PixelBytes"] == 2:            
+            #print ("YES")                                     # <-----------            
             image = dBytesToMat(data,bitWidth,Width,Height)
         else:
             image = np.frombuffer(data, np.uint8).reshape( Height,Width , 1 )
-    if emImageFmtMode == ArducamSDK.FORMAT_MODE_RAW:
+    if emImageFmtMode == ArducamSDK.FORMAT_MODE_RAW: # 0
         if cfg["u8PixelBytes"] == 2:
             image = dBytesToMat(data,bitWidth,Width,Height)
         else:
             image = np.frombuffer(data, np.uint8).reshape( Height,Width , 1 )
         image = convert_color(image,color_mode)
-    if emImageFmtMode == ArducamSDK.FORMAT_MODE_RAW_D:
+    if emImageFmtMode == ArducamSDK.FORMAT_MODE_RAW_D: #5
         image = separationImage(data,Width,Height)
         image = convert_color(image,color_mode)
         pass
-    if emImageFmtMode == ArducamSDK.FORMAT_MODE_MON_D:
+    if emImageFmtMode == ArducamSDK.FORMAT_MODE_MON_D: #6
         image = separationImage(data,Width,Height)
         pass
     return image

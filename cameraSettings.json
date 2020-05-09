@@ -7,7 +7,7 @@
     "exposure_mode": "off", 
     "awb_mode": "flash", 
     "iso": 60, 
-    "mode": "straight", 
+    "mode": "components", 
     "shutter_speed": 40000, 
     "exposure_compensation": -10, 
     "contrast": 0

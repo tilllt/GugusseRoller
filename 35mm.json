@@ -4,7 +4,7 @@
 	"speed": 10000.0,
 	"speed2": 400.0,
 	"accel": 100.0,
-	"ignoreInitial": 9600,
+	"ignoreInitial": 9550,
 	"faultTreshold": 20000
     },
     "feeder": {

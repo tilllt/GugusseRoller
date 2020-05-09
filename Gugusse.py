@@ -12,7 +12,7 @@ from time import sleep, time
 import RPi.GPIO as GPIO
 import threading
 import json
-from GCamera import GCamera
+from ACamera import ACamera
 from fractions import Fraction
 import os
 GPIO.setmode(GPIO.BCM) 
@@ -53,7 +53,8 @@ class Gugusse():
         self.feeder.enable()
         self.filmdrive.enable()
         self.pickup.enable()
-        self.cam=GCamera()
+        self.cam=ACamera()
+        self.cam.init_camera()
 
     def setLight(self, color):
        c=colors[color]
@@ -62,16 +63,18 @@ class Gugusse():
        GPIO.output(13,c[2])
         
     def grabAPicComponent(self, fn, fncomplete):
-        try:
-           self.cam.capture(fn)
-        except exception as e:
-           self.feeder.disable()
-           self.filmdrive.disable()
-           self.pickup.disable()
-           print("Failure to capture image: {}".format(e))
-           self.cam.close()
-           raise Exception("Stop")
-        os.rename(fn,fncomplete)
+        #try:
+        #   self.cam.capture(fn)
+        #except exception as e:
+        #   self.feeder.disable()
+        #   self.filmdrive.disable()
+        #   self.pickup.disable()
+        #   print("Failure to capture image: {}".format(e))
+        #   self.cam.close()
+        #   raise Exception("Stop")
+        #os.rename(fn,fncomplete)
+        pass
+
     def grabASimpleSequential(self):
         fn="/dev/shm/%05d.jpg"%self.framecount
         fncomplete="/dev/shm/complete/%05d.jpg"%self.framecount
@@ -80,41 +83,19 @@ class Gugusse():
 
     
     def grabAPic(self):
-        if self.cam.gcSettings["mode"] in [ "straight", "bracketed"]:                      
-           self.grabASimpleSequential()
-        if self.cam.gcSettings["mode"]=="bracketed":
-           self.cam.shutter_speed=self.cam.gcSettings["shutter_speed"]/2
-           sleep(0.25)
-           self.grabASimpleSequential()
-           self.cam.shutter_speed=self.cam.gcSettings["shutter_speed"]*2
-           sleep(0.25)
-           self.grabASimpleSequential()
-           self.cam.shutter_speed=self.cam.gcSettings["shutter_speed"]
-
-        if self.cam.gcSettings["mode"]=="components":
-            fn="/dev/shm/%05d.jpg"%self.framecount
-            fncomplete="/dev/shm/complete/%05d.jpg"%self.framecount
-            self.grabAPicComponent(fn, fncomplete)
-            self.setLight("red")
-            fn="/dev/shm/%05d_RED.jpg"%self.framecount
-            fncomplete="/dev/shm/complete/%05d_RED.jpg"%self.framecount
-            sleep(0.25)
-            self.grabAPicComponent(fn, fncomplete)
-
-            self.setLight("green")
-            fn="/dev/shm/%05d_GRN.jpg"%self.framecount
-            fncomplete="/dev/shm/complete/%05d_GRN.jpg"%self.framecount
-            sleep(0.25)
-            self.grabAPicComponent(fn, fncomplete)
-
-            self.setLight("blue")
-            fn="/dev/shm/%05d_BLU.jpg"%self.framecount
-            fncomplete="/dev/shm/complete/%05d_BLU.jpg"%self.framecount
-            sleep(0.25)
-            self.grabAPicComponent(fn, fncomplete)
-            self.setLight("white")
-            self.framecount+= 1
+        save_path="/dev/shm/inprogress"
+        final_path="/dev/shm/complete"
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        if not os.path.exists(final_path):
+            os.makedirs(final_path)
         
+        fn="{}/{:05}.tif".format(save_path,self.framecount)
+        fncomplete="{}/{:05}.tif".format(final_path,self.framecount)
+        image=self.cam.captureImage(fn)
+        os.rename(fn,fncomplete)
+        self.framecount+= 1
+        return image
            
     def frameAdvance(self):
         m1=MotorThread(self.filmdrive)
@@ -126,14 +107,14 @@ class Gugusse():
         m2.join()
         m1.start()
         m1.join()
-        self.cam.gcApplySettings()
+        #self.cam.gcApplySettings()
         if m1.motor.fault or m2.motor.fault or m3.motor.fault:
            self.feeder.disable()
            self.filmdrive.disable()
            self.pickup.disable()
            raise Exception("Motor Fault!")
         sleep(0.25)
-        self.grabAPic()
+        return self.grabAPic()
            
 
         
@@ -160,6 +141,7 @@ except Exception as e:
 if feederDirection == "cw":
    cfg["feeder"]["invert"]=not cfg["feeder"]["invert"]
 capture=Gugusse(cfg, firstNum)
+
 while True:
     capture.frameAdvance()
     sleep(0.05)
