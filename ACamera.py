@@ -55,6 +55,7 @@ class ACamera():
         self.totalFrame=0
         self.light=Backlight.Backlight()
         self.glitches=0
+        cv2.namedWindow("Gugusse",1)
         
 
     def init_camera(self):        
@@ -234,6 +235,10 @@ class ACamera():
         self.light.setLight("white")
         image=cv2.merge([blue, green, red])
         cv2.imwrite(fn, image)
+        image = cv2.resize(image,(1024,768),interpolation = cv2.INTER_LINEAR)
+
+        cv2.imshow("Gugusse",image)
+        cv2.waitKey(20)
         return image
 
             
