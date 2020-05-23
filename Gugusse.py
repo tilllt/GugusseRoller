@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 ################################################################################
 # Gugusse.py
 # 
@@ -14,6 +14,7 @@ import threading
 import json
 from GCamera import GCamera
 from fractions import Fraction
+from pydng.core import RPICAM2DNG
 import os
 GPIO.setmode(GPIO.BCM) 
 
@@ -42,12 +43,15 @@ class Gugusse():
         self.filmdrive.enable()
         self.pickup.enable()
         self.cam=GCamera()
+        self.DNG=RPICAM2DNG()
     def grabAPic(self):
         fn="/dev/shm/%05d.jpg"%self.framecount
-        fncomplete="/dev/shm/complete/%05d.jpg"%self.framecount
+        fnDNG="/dev/shm/%05d.dng"%self.framecount
+        fncomplete="/dev/shm/complete/%05d.dng"%self.framecount
         self.framecount+= 1
         try:
-           self.cam.capture(fn)
+           self.cam.capture(fn, bayer=True)
+           self.DNG.convert(fn,process=False, compress=False)
         except exception as e:
            self.feeder.disable()
            self.filmdrive.disable()
@@ -55,7 +59,9 @@ class Gugusse():
            print("Failure to capture image: {}".format(e))
            self.cam.close()
            raise Exception("Stop")
-        os.rename(fn,fncomplete)
+        os.remove(fn)
+        os.rename(fnDNG,fncomplete)
+        
         
            
     def frameAdvance(self):
